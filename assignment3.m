@@ -1,4 +1,5 @@
 clear;
+rng(0);
 % [Xtr,Ytr,ytr] = LoadBatch('data_batch_1.mat');
 % [Xva,Yva,yva] = LoadBatch('data_batch_2.mat');
 % [Xte,Yte,yte] = LoadBatch('test_batch.mat');
@@ -34,12 +35,12 @@ data.Xva = Xva;data.Yva=Yva;data.yva=yva;
 data.Xte = Xte;data.Yte=Yte;data.yte=yte;
 
 
-lambda = 0.000005;
-[Mparams,W,b] = setMparams(1000,.15,30,0.9,0.975,data,[3,50,30]); %n_batch,eta,n_epochs,rho,decay_rate
+lambda = 0.005;
+[Mparams,W,b] = setMparams(500,.1073,20,0.9,0.975,data,[3,50,30]); %n_batch,eta,n_epochs,rho,decay_rate
 main(Mparams,data,W,b,lambda)
-%[error_b,error_W] = gradientsCheck(Xtr, Ytr, W,b,5);
-
- %[result, Wed, bed] = main(Mparams,data,W,b,lambda)
+% [error_b,error_W] = gradientsCheck(Xtr, Ytr, W,b,5);
+% 
+%  [result, Wed, bed] = main(Mparams,data,W,b,lambda)
 % Mparams2 = setMparams(500,0.102,10,0.9,0.975);
 % main(Mparams2,data,Wed,bed,lambda)
 
@@ -55,17 +56,19 @@ main(Mparams,data,W,b,lambda)
 %     rho = 0.9;
 %     decay=0.975;
 %     %eta = 10^et;
-%     %lambda = 0.00005;
+%      lambda = 0.005;
+%      batc = 50 +i*50;
 %     %eta = 0.1+i*0.01;
 %     result(1+i,2) = lambda;
 %     result(1+i,3) = rho;
 %     result(1+i,4) = decay;
 %     result(1+i,1) = eta;
-%     [Mparams,W,b] = setMparams(100,eta,5,rho,decay,data,[3,50,30]);
-%    % initialize parameters W b.
-% %     mean = 0; std = 0.001;
-% %     W.One = std.*randn(m,d)+mean;W.Two = std.*randn(K,m)+mean;
-% %     b.One = zeros(m,1); b.Two = zeros(K,1);
+%    [Mparams,W,b] = setMparams(100,eta,5,rho,decay,data,[3,50,30]);
+%     [Mparams,W,b] = setMparams(batc,.0702,10,.9,.957,data,[2,50,30]);
+%    initialize parameters W b.
+%     mean = 0; std = 0.001;
+%     W.One = std.*randn(m,d)+mean;W.Two = std.*randn(K,m)+mean;
+%     b.One = zeros(m,1); b.Two = zeros(K,1);
 %     result(1+i,5:8)=main(Mparams,data,W,b,lambda);
 %     i
 %     if result(i+1,6) >= result(1,6)
@@ -79,6 +82,7 @@ main(Mparams,data,W,b,lambda)
 function [result,Wed,bed] = main(Mparams,data,W,b,lambda)
 Jtr = zeros(1,Mparams.n_epochs);
 Jva = zeros(1,Mparams.n_epochs);
+alpha=0.99;
 for i = 1 : Mparams.n_epochs
 %     if (i==5)
 %         Mparams.rho = 0.9;
@@ -86,6 +90,14 @@ for i = 1 : Mparams.n_epochs
 %         Mparams.decay_rate=0.95;
 %     end
     [W, b,muav,varsav] = MiniBatchGD(data.Xtr,data.Ytr,Mparams,W,b,lambda);
+%     if i == 1
+%         muav=mu;
+%         varsav=vars;
+%     else
+%         muav=cellfun(@(x,y) alpha.*x+(1-alpha).*y,muav,mu,'un',0);
+%         varsav=cellfun(@(x,y) alpha.*x+(1-alpha).*y,varsav,vars,'un',0);
+%     end
+    
     Jtr(i) = ComputeCost(data.Xtr,data.Ytr,W,b,lambda,Mparams,muav,varsav);
     Jva(i) = ComputeCost(data.Xva,data.Yva,W,b,lambda,Mparams,muav,varsav);
 end
@@ -198,6 +210,7 @@ end
 %% Cost function
 function J = ComputeCost(X,Y,W,b,lambda,Mparams,muav,varsav)
 N = size(X,2);
+%[P,s,x,sNormed,muav,varsav] = EvaluateClassifier(X, W, b,Mparams);
 [P,s,x,sNormed,mu,vars] = EvaluateClassifier(X,W,b,Mparams,muav,varsav);
 cross = 0;
 for i = 1:N
@@ -210,7 +223,8 @@ end
 %% accuracy of the network's predictions
 % becarefull that y here is the vector that contains the true lables.
 function acc = ComputeAccuracy(X,y,W,b,Mparams,muav,varsav)
-P = EvaluateClassifier(X,W,b,Mparams,muav,varsav);
+%[P,s,x,sNormed,muav,varsav] = EvaluateClassifier(X, W, b,Mparams);
+[P,s,x,sNormed,muav,varsav] = EvaluateClassifier(X,W,b,Mparams,muav,varsav);
 [p,kstar] = max(P);
 N=size(X,2);
 acc = 0;
@@ -358,7 +372,7 @@ if nargin > 0
     Mparams.decay_rate = decay_rate;
     Mparams.n_layers = layers(1);
 end
-rng(0);
+%rng(0);
 d = size(data.Xtr,1);
 K = size(data.Ytr,1);
 mean = 0; std = 0.001;
@@ -380,7 +394,7 @@ N = size(X,2);
 fieldW = fieldnames(W);
 fieldb = fieldnames(b);
 k = Mparams.n_layers;
-alpha=0.9;
+alpha=0.99;
 for j = 1:k
 v_W.(fieldW{j}) = zeros(size(W.(fieldW{j})));
 v_b.(fieldb{j}) = zeros(size(b.(fieldb{j})));
@@ -399,8 +413,6 @@ for j = 1 : N/n_batch
     else
         muav=cellfun(@(x,y) alpha.*x+(1-alpha).*y,muav,mu,'un',0);
         varsav=cellfun(@(x,y) alpha.*x+(1-alpha).*y,varsav,vars,'un',0);
-%         muav = alpha*muav+(1-alpha)*mu;
-%         varsav = alpha*varsav+(1-alpha)*vars;
     end
     [grad_b, grad_W] = ComputeGradients(Xbatch, Ybatch,W,b,lambda,Mparams,P,s,x,sNormed,mu,vars);
  %   grad_W.One(1:10,1:10)
